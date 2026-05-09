@@ -1,110 +1,96 @@
 package com.ampedro.vendas.service;
 
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 
 import com.ampedro.vendas.model.Venda;
 import com.ampedro.vendas.model.dto.ConsultaIn;
 import com.ampedro.vendas.model.dto.VendaOut;
 import com.ampedro.vendas.repository.VendaRepository;
-import com.ampedro.vendas.repository.VendedorRepository;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @RequiredArgsConstructor
 @Service
 public class ConsultaService {
 
-    private final VendedorRepository vendedorRepository;
     private final VendaRepository vendaRepository;
 
-
     public List<VendaOut> buscarVendasPorDatas(ConsultaIn consultaIn) {
-        List<Venda> vendaList = vendaRepository.findByIdVendedor(consultaIn.getIdVendedor());
+
+        List<Venda> vendaList =
+                vendaRepository.findByIdVendedor(
+                        consultaIn.getIdVendedor());
+
         List<VendaOut> list = new ArrayList<>();
-        SimpleDateFormat formatoData = new SimpleDateFormat("dd/MM/yyyy");
-        Calendar datavenda = Calendar.getInstance();
-        Calendar dataInicial = Calendar.getInstance();
-        Calendar dataFinal = Calendar.getInstance();
-        try {
-            dataInicial.setTime(formatoData.parse(consultaIn.getDataInicial()));
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-        try {
-            dataFinal.setTime(formatoData.parse(consultaIn.getDataFinal()));
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
 
-        vendaList.forEach(consulta -> {
-            try {
-                datavenda.setTime(formatoData.parse(consulta.getData()));
-            } catch (ParseException e) {
-                e.printStackTrace();
-            }
+        LocalDate dataInicial = consultaIn.getDataInicial();
+        LocalDate dataFinal = consultaIn.getDataFinal();
 
-           if (datavenda.after(dataInicial) && datavenda.before(dataFinal)){
-               VendaOut vendaOut = new VendaOut();
-               vendaOut.setIdVendedor(consulta.getVendedor().getId());
-               vendaOut.setNomeVendendor(consulta.getVendedor().getNome());
-               vendaOut.setValor(consulta.getValor());
-               vendaOut.setData(consulta.getData());
-               vendaOut.setIdVenda(consulta.getIdVenda());
-               list.add(vendaOut);
-           }
-        });
-        return list;
-    }
+        vendaList.forEach(venda -> {
 
-    public Long mediaPorDatas(ConsultaIn consultaIn) {
-        List<Venda> vendaList = vendaRepository.findByIdVendedor(consultaIn.getIdVendedor());
-        List<VendaOut> list = new ArrayList<>();
-        List<Long> media = new ArrayList<>();
-        int cont = 0;
-        SimpleDateFormat formatoData = new SimpleDateFormat("dd/MM/yyyy");
-        Calendar datavenda = Calendar.getInstance();
-        Calendar dataInicial = Calendar.getInstance();
-        Calendar dataFinal = Calendar.getInstance();
-        try {
-            dataInicial.setTime(formatoData.parse(consultaIn.getDataInicial()));
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-        try {
-            dataFinal.setTime(formatoData.parse(consultaIn.getDataFinal()));
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
+            LocalDate dataVenda = venda.getData();
 
-        vendaList.forEach(consulta -> {
-            try {
-                datavenda.setTime(formatoData.parse(consulta.getData()));
-            } catch (ParseException e) {
-                e.printStackTrace();
-            }
+            if ((dataVenda.isEqual(dataInicial)
+                    || dataVenda.isAfter(dataInicial))
+                    &&
+                    (dataVenda.isEqual(dataFinal)
+                            || dataVenda.isBefore(dataFinal))) {
 
-            if (datavenda.after(dataInicial) && datavenda.before(dataFinal)){
                 VendaOut vendaOut = new VendaOut();
-                vendaOut.setValor(consulta.getValor());
-                media.add(consulta.getValor());
+
+                vendaOut.setIdVenda(venda.getIdVenda());
+                vendaOut.setIdVendedor(venda.getVendedor().getId());
+                vendaOut.setNomeVendendor(venda.getVendedor().getNome());
+                vendaOut.setValor(venda.getValor());
+                vendaOut.setData(venda.getData());
+
                 list.add(vendaOut);
             }
         });
 
-        int n = media.size();
-        Long valor;
-        Long soma = 0l;
-        for (int i = 0; i<n; i++){
-            soma = media.get(i) + soma;
+        return list;
+    }
+
+    public BigDecimal mediaPorDatas(ConsultaIn consultaIn) {
+
+        List<Venda> vendaList =
+                vendaRepository.findByIdVendedor(
+                        consultaIn.getIdVendedor());
+
+        List<BigDecimal> media = new ArrayList<>();
+
+        LocalDate dataInicial = consultaIn.getDataInicial();
+        LocalDate dataFinal = consultaIn.getDataFinal();
+
+        vendaList.forEach(venda -> {
+
+            LocalDate dataVenda = venda.getData();
+
+            if ((dataVenda.isEqual(dataInicial)
+                    || dataVenda.isAfter(dataInicial))
+                    &&
+                    (dataVenda.isEqual(dataFinal)
+                            || dataVenda.isBefore(dataFinal))) {
+
+                media.add(venda.getValor());
+            }
+        });
+
+        if (media.isEmpty()) {
+            return BigDecimal.ZERO;
         }
-        valor = soma/ n;
-        return valor;
+
+        BigDecimal soma = BigDecimal.ZERO;
+
+        for (BigDecimal valor : media) {
+            soma = soma.add(valor);
+        }
+
+        return soma.divide(BigDecimal.valueOf(media.size()));
     }
 }
-
