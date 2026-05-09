@@ -1,11 +1,17 @@
 package com.ampedro.vendas.model;
 
-import com.sun.istack.NotNull;
-import lombok.*;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 import org.springframework.format.annotation.DateTimeFormat;
 
-import javax.persistence.*;
-import javax.validation.constraints.NotBlank;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @NoArgsConstructor
 @Getter
@@ -13,22 +19,24 @@ import javax.validation.constraints.NotBlank;
 @Entity
 public class Venda {
 
-    @Id @GeneratedValue(strategy = GenerationType.AUTO)
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long idVenda;
 
     @ManyToOne
-    @JoinColumn(name ="idVendedor", nullable = false)
+    @JoinColumn(name = "idVendedor", nullable = false)
     private Vendedor vendedor;
 
     @NotNull
     private String nomeVendededor;
 
-    @NotBlank
+    @NotNull
     @DateTimeFormat
-    private String data;
+    private LocalDate data;
 
     @NotNull
-    private Long valor;
+    private BigDecimal valor;
 
-
+    @NotBlank
+    private String enderecoEntrega;
 }
