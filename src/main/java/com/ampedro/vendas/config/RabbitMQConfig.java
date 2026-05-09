@@ -5,12 +5,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class RabbitConfig {
+public class RabbitMQConfig {
 
-    public static final String FILA_PEDIDO = "pedido.queue";
+    public static final String FILA_PEDIDOS = "pedidos.queue";
 
     @Bean
-    public Queue queue() {
-        return new Queue(FILA_PEDIDO, true);
+    public Queue filaPedidos() {
+        return new Queue(FILA_PEDIDOS, true);
     }
 }
