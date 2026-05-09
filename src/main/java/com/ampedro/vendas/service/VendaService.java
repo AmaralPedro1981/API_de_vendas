@@ -1,5 +1,7 @@
 package com.ampedro.vendas.service;
 
+import com.ampedro.vendas.config.PedidoProducer;
+import com.ampedro.vendas.model.dto.PedidoMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -12,73 +14,83 @@ import com.ampedro.vendas.model.dto.VendaOut;
 import com.ampedro.vendas.repository.VendaRepository;
 import com.ampedro.vendas.repository.VendedorRepository;
 
-import java.util.ArrayList;
+import java.math.BigDecimal;
 import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
-@RequiredArgsConstructor
 @Service
+@RequiredArgsConstructor
 public class VendaService {
 
     private final VendedorRepository vendedorRepository;
     private final VendaRepository vendaRepository;
+    private final PedidoProducer pedidoProducer;
 
-    public VendaOut salvaVenda(VendaIn vendaIn){
-        VendaOut vendaOut = null;
-        try{Optional<Vendedor> vendedor = vendedorRepository.findById(vendaIn.getIdVendedor());
-            String data = vendaIn.getData();
-            Long valor = vendaIn.getValor();
-            Venda venda = new Venda(null, vendedor.get(), vendedor.get().getNome(),data, valor);
-            venda = vendaRepository.save(venda);
+    public VendaOut criarVenda(VendaIn vendaIn) {
 
-            vendaOut = new VendaOut(venda.getIdVenda(), vendedor.get().getId(), vendedor.get().getNome(),valor,data);
-        } catch (NoSuchElementException exception){
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        }
+        Vendedor vendedor = vendedorRepository.findById(vendaIn.getIdVendedor())
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Vendedor não encontrado"
+                        ));
 
-        return vendaOut;
+        Venda venda = new Venda(
+                null,
+                vendedor,
+                vendedor.getNome(),
+                vendaIn.getData(),
+                vendaIn.getValor(),
+                vendaIn.getEnderecoEntrega()
+        );
+
+        venda = vendaRepository.save(venda);
+
+        PedidoMessage message = PedidoMessage.builder()
+                .pedidoId(venda.getIdVenda())
+                .enderecoEntrega(venda.getEnderecoEntrega())
+                .build();
+
+        pedidoProducer.enviarPedido(message);
+
+        return new VendaOut(
+                venda.getIdVenda(),
+                vendedor.getId(),
+                vendedor.getNome(),
+                venda.getValor(),
+                venda.getData()
+        );
     }
 
-    public List<VendaOut> buscaVendasPorIdVendedor(Long idVendedor){
-        List<Venda> vendaList = vendaRepository.findByIdVendedor(idVendedor);
-        List<VendaOut> list = new ArrayList<>();
-        List<Long> media = new ArrayList<>();
+    public List<VendaOut> buscarVendasPorVendedor(Long idVendedor) {
 
+        List<Venda> vendaList =
+                vendaRepository.findByIdVendedor(idVendedor);
 
-         vendaList.forEach(vendas -> {
-             VendaOut vendaOut = new VendaOut();
-             vendaOut.setIdVendedor(vendas.getVendedor().getId());
-             vendaOut.setNomeVendendor(vendas.getVendedor().getNome());
-             vendaOut.setValor(vendas.getValor());
-             vendaOut.setData(vendas.getData());
-             vendaOut.setIdVenda(vendas.getIdVenda());
-             media.add(vendas.getValor());
-             list.add(vendaOut);
-         });
-
-
-        return list;
+        return vendaList.stream()
+                .map(venda -> new VendaOut(
+                        venda.getIdVenda(),
+                        venda.getVendedor().getId(),
+                        venda.getVendedor().getNome(),
+                        venda.getValor(),
+                        venda.getData()
+                ))
+                .collect(Collectors.toList());
     }
 
-    public Long mediadeVendas(Long idVendedor) {
-        List<Venda> vendaList = vendaRepository.findByIdVendedor(idVendedor);
-        List<VendaOut> list = new ArrayList<>();
-        List<Long> media = new ArrayList<>();
+    public BigDecimal mediaDeVendas(Long idVendedor) {
 
-        vendaList.forEach(vendas -> {
-            VendaOut vendaOut = new VendaOut();
-            vendaOut.setValor(vendas.getValor());
-            media.add(vendas.getValor());
-        });
+        List<Venda> vendaList =
+                vendaRepository.findByIdVendedor(idVendedor);
 
-        int n = media.size();
-        Long valor;
-        Long soma = 0l;
-        for (int i = 0; i<n; i++){
-            soma = media.get(i) + soma;
+        if (vendaList.isEmpty()) {
+            return BigDecimal.ZERO;
         }
-        valor = soma/ media.size();
-        return valor;
+
+        BigDecimal soma = vendaList.stream()
+                .map(Venda::getValor)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return soma.divide(BigDecimal.valueOf(vendaList.size()));
     }
 }
