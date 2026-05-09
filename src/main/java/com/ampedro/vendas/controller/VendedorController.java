@@ -16,7 +16,7 @@ public class VendedorController {
 
     private final VendedorService vendedorService;
 
-    @PostMapping("/vendedor")
+    @PostMapping("/vendedores")
     public ResponseEntity salvarVendedor(@Valid @RequestBody VendedorIn vendedorIn){
        vendedorService.salvaVendedor(vendedorIn);
 
